@@ -890,6 +890,8 @@ require('lazy').setup({
       require('tokyonight').setup {
         styles = {
           comments = { italic = false }, -- Disable italics in comments
+          sidebars = "transparent",
+					floats = "transparent",
         },
         transparent = true, -- Sets transparent neovim background
       }
