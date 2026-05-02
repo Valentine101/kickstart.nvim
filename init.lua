@@ -536,6 +536,13 @@ require('lazy').setup({
       vim.api.nvim_create_autocmd('LspAttach', {
         group = vim.api.nvim_create_augroup('kickstart-lsp-attach', { clear = true }),
         callback = function(event)
+          local client = vim.lsp.get_client_by_id(event.data.client_id)
+          -- groovyls only reads classpath via didChangeConfiguration (never requests it),
+          -- so push it explicitly on attach since Neovim won't send it automatically.
+          if client and client.name == 'groovyls' then
+            client:notify('workspace/didChangeConfiguration', { settings = client.config.settings })
+          end
+
           -- NOTE: Remember that Lua is a real programming language, and as such it is possible
           -- to define small helper and utility functions so you don't have to repeat yourself.
           --
@@ -615,6 +622,24 @@ require('lazy').setup({
 
         stylua = {}, -- Used to format Lua code
 
+        groovyls = {
+          cmd = { 'groovy-language-server' },
+          root_markers = { 'grails-app', 'build.gradle', 'settings.gradle', 'Jenkinsfile', '.git' },
+          settings = {
+            groovy = {
+              -- Scans Gradle's local cache for JARs so groovyls can resolve Grails imports.
+              -- Run `./gradlew compileGroovy` first to populate build/classes for project classes.
+              classpath = (function()
+                local gradle_cache = vim.fn.expand '~/.gradle/caches/modules-2/files-2.1'
+                if vim.fn.isdirectory(gradle_cache) == 1 then
+                  return vim.fn.globpath(gradle_cache, '**/*.jar', false, true)
+                end
+                return {}
+              end)(),
+            },
+          },
+        },
+
         -- Special Lua Config, as recommended by neovim help docs
         lua_ls = {
           on_init = function(client)
@@ -659,7 +684,8 @@ require('lazy').setup({
       -- You can press `g?` for help in this menu.
       local ensure_installed = vim.tbl_keys(servers or {})
       vim.list_extend(ensure_installed, {
-        -- You can add other tools here that you want Mason to install
+        'groovy-language-server',
+        'gradle-language-server',
       })
 
       require('mason-tool-installer').setup { ensure_installed = ensure_installed }
